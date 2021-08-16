@@ -330,7 +330,7 @@ def print_metrics(metrics, weights, prefix=''):
     to_ret = None
     L = Logger()
     logger = L.get_logger()
-    for metric in metric_names:
+    for metric in metric_names[:-1]:
         ordered_metric = [metrics[c][metric] for c in client_ids]
         logger.info('{}: {}, 10th percentile: {}, 50th percentile: {}, 90th percentile {}'.format
                 (prefix + metric,
@@ -338,10 +338,20 @@ def print_metrics(metrics, weights, prefix=''):
                  np.percentile(ordered_metric, 10, axis=0),
                  np.percentile(ordered_metric, 50, axis=0),
                  np.percentile(ordered_metric, 90, axis=0)))
-        # print(prefix + metric)
-        # for i in range(len(client_ids)):
-        #     print("client_id = {}, weight = {}, {} = {}".format(client_ids[i], ordered_weights[i], prefix + metric, ordered_metric[i]))
-        # print('total: {} = {}'.format(prefix + metric, np.average(ordered_metric, weights=ordered_weights)))
+    
+    #Global Disparate Impact
+    metric = metric_names[-1]
+    global_cnt1, global_cnt2, global_cnt3, global_cnt4 = 0,0,0,0
+    for c in client_ids:
+        global_cnt1 += metrics[c][metric][0]
+        global_cnt2 += metrics[c][metric][1]
+        global_cnt3 += metrics[c][metric][2]
+        global_cnt4 += metrics[c][metric][3]
+        
+    unpriv_term = global_cnt1 / global_cnt2
+    priv_term = global_cnt3 / global_cnt4
+    DI = unpriv_term / priv_term
+    logger.info('{}: {}'.format(prefix + metric, DI))
 
 
 if __name__ == '__main__':

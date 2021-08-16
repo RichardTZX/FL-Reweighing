@@ -1,5 +1,6 @@
-bd7c5a0ed07a97d7c2946c1682bf2113  data/all_data/data.json
-bea15d654af40fb67924cd46a7ab37a1  data/rem_user_data/data_niid_0_keep_0.json
-bea15d654af40fb67924cd46a7ab37a1  data/sampled_data/data_niid_0.json
-c3278f924724dddc39134a4b84e99a55  data/test/data_niid_0_keep_0_test_9.json
-1253dc810329bcfe37bd47f7b7417585  data/train/data_niid_0_keep_0_train_9.json
+ee4a01c3472f17ec54a866b3737bd2f1  data/all_data/data.json
+3a9c9c581d7afc4c80ec6017e2f69028  data/all_data/gan.json
+d9e5f9ba751e1b296ef216e7a1f98411  data/rem_user_data/data_niid_0_keep_0.json
+d9e5f9ba751e1b296ef216e7a1f98411  data/sampled_data/data_niid_0.json
+4c61aa5fa3b7856588bc6aead54af559  data/test/data_niid_0_keep_0_test_9.json
+a3afff6fba2aa02560268a4ec87ed0fd  data/train/data_niid_0_keep_0_train_9.json

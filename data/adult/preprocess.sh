@@ -16,3 +16,8 @@ cd ../utils
 ./preprocess.sh --name $NAME $@
 
 cd ../$NAME
+
+if [ -f "data/all_data/gan.json" ]; then
+	echo "GAN Setup"
+	python gan_data.py
+fi

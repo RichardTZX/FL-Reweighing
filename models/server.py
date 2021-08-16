@@ -193,7 +193,8 @@ class Server:
             avg_loss = sum(losses)/len(losses)
             if self.cfg.sensitive_attribute:
                 avg_di = sum(disp_imps)/len(disp_imps)
-                logger.info('average acc: {}, average loss: {}, average DI: {}'.format(avg_acc, avg_loss,avg_di))
+                std_di = np.std(np.array(disp_imps))
+                logger.info('average acc: {}, average loss: {}, average DI: {}, standard deviation DI: {}'.format(avg_acc, avg_loss, avg_di, std_di))
             else:
                 logger.info('average acc: {}, average loss: {}'.format(avg_acc, avg_loss))
             logger.info('configuration and update stage simulation time: {}'.format(simulate_time))
