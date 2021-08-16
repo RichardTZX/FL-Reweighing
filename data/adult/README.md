@@ -6,8 +6,8 @@ The aim of this dataset is to use census data (individual’s education level, a
 - Drop following features: 'workclass', 'fnlwgt', 'education', 'marital-status', 'occupation',
           'relationship', 'capital-gain', 'capital-loss', 'hours-per-week', 'native-country'
 - Map 'race', 'sex' and 'class' values to 0/1:
-          - ' White': 1, ' Amer-Indian-Eskimo': 0, ' Asian-Pac-Islander': 0, ' Black': 0, ' Other': 0
-          - ' Male': 1, ' Female': 0
+    - ' White': 1, ' Amer-Indian-Eskimo': 0, ' Asian-Pac-Islander': 0, ' Black': 0, ' Other': 0
+    - ' Male': 1, ' Female': 0
 - Split 'age' and 'education' columns into multiple columns based on value
 - Further details in ```adult_to_json.py``` and the ```get_adult_clear()``` functon.
 
