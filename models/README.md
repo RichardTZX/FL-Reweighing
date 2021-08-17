@@ -4,7 +4,7 @@
 - Ensure that the ```data/adult/data/train``` and ```data/adult/data/test``` directories contain data
 - If you use the 'Simulated GAN' setup make sure to delete ```data_niid_*.json``` in ```data/adult/data/train```. You should only have ```gan_data_*.json``` in this directory.
 - Write a config file following the example of ```adult_default.cfg```. You should change the number of clients selected at each round, the learning rate, heterogeneities,...
-- Run ```python3 main.py --config adult_default.cfg```
+- Run ```python main.py --config adult_default.cfg```
 - For more simulation options and details, see 'Additional Notes' section
 
 ## Additional Notes
