@@ -1,26 +1,16 @@
 # Server-Client Simulations
 
-## FEMNIST Classifier Instructions
-- Ensure that the ```data/femnist/data/train``` and ```data/femnist/data/test``` directories contain data
-- Run ```python3 main.py -dataset femnist -model cnn```
-- For more simulation options and details, see 'Additional Notes' section
-
-## Sentiment140 Classifier Instructions
-- Ensure that the ```data/sent140/data/train``` and ```data/sent140/data/test``` directories contain data
-- If you already have a .txt file containing word embeddings (i.e. 'glove.6B.300d.txt') in the sent140 directory, run ```sent140/get_embs.py -f fp```, where fp is the file path to the .txt file, to generate a .json file for the classifier to load. Otherwise, run ```./sent140/get_embs.sh```, which downloads the embeddings and creates the .json file.
-- Run ```python3 main.py -dataset sent140 -model stacked_lstm```
-- For more simulation options and details, see 'Additional Notes' section
-
-## Shakespeare Classifier Instructions
-- Ensure that the ```data/shakespeare/data/train``` and ```data/shakespeare/data/test``` directories contain data
-- Run ```python3 main.py -dataset shakespeare -model stacked_lstm```
+## Adult Classifier Instructions
+- Ensure that the ```data/adult/data/train``` and ```data/adult/data/test``` directories contain data
+- If you use the 'Simulated GAN' setup make sure to delete ```data_niid_*.json``` in ```data/adult/data/train```. You should only have ```gan_data_*.json``` in this directory.
+- Write a config file following the example of ```adult_default.cfg```. You should change the number of clients selected at each round, the learning rate, heterogeneities,...
+- Run ```python3 main.py --config adult_default.cfg```
 - For more simulation options and details, see 'Additional Notes' section
 
 ## Additional Notes
 - In order to run these reference implementations, the ```-t sample``` tag must have been used when running the ```./preprocess.sh``` script for the respective dataset
 - The total number of clients simulated equals the total number of users in the respective dataset's training data
-- For optimal model performance, generate data using arguments similar to those listed in the 'large-sized dataset' option in the respective dataset README file.
-- ```main.py``` supports these additional tags:
+- If you don't use a config file, ```main.py``` supports these additional tags:
     - ```--model```: name of model; options are listed the respective dataset folder, for example ```cnn``` for femnist; defaults to first model in the respective dataset folder
     - ```--num_rounds```: number of rounds to simulate
     - ```--eval_every```: evaluate every ___ rounds
