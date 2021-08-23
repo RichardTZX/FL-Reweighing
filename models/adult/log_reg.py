@@ -70,6 +70,8 @@ class ClientModel(Model):
 
         eval_metric_ops = [tf.count_nonzero(correct_pred),DI,
             [tf.count_nonzero(unpriv_pred), tf.count_nonzero(unpriv_pred * 0 + 1), tf.count_nonzero(priv_pred), tf.count_nonzero(priv_pred * 0 + 1)]]
+        # The 4 elements table is useful to calculate the "global disparate impact" when local dataset are too small to calcule local DI and then take the mean of all the local DI.
+
         
         return features, labels, train_op, eval_metric_ops, tf.reduce_mean(loss)
 

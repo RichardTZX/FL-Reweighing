@@ -11,25 +11,45 @@ def main():
     args=parse_args()
     np.random.seed(args.seed)
     print("Preprocessing adult.csv ...")
-    df_adult, labels = get_adult_clear()
+    adult_preprocessed_dir = os.path.join(parent_path, 'data', 'adult_preprocessed.csv')
+    if os.path.exists(adult_preprocessed_dir):
+        print("Readind adult_preprocessed.csv ...")
+        df_adult = pd.read_csv(adult_preprocessed_dir)
+        labels = df_adult['income']
+        df_adult = df_adult.drop("income", axis=1)
+    else:
+        df_adult, labels = get_adult_clear()
     num_workers = args.num_workers
     heterog = args.heterog
-    gan = args.gan
+    gan, niid  = args.gan, args.niid
 
     dir_path = os.path.join(parent_path, 'data', 'all_data')
 
     if gan:
-        users, num_samples, user_data = to_leaf_format_gan(df_adult, labels, num_workers)
+        if niid:
+            users, num_samples, user_data = to_leaf_format_gan_100_0(df_adult, labels, num_workers)
 
-        gan_data = user_data[str(num_workers)]
-        del user_data[str(num_workers)]
+            gan_data = user_data[str(num_workers)]
+            del user_data[str(num_workers)]
 
-        save_json(dir_path, 'data.json', users[:-1], num_samples[:-1], user_data)
-        save_json(dir_path, 'gan.json', users[-1], num_samples[-1], gan_data)
-        print("data.json ready with the adult.csv data distributed to {} workers and gan.json with the little subset of data that every worker will share".format(num_workers))
-        print("You can run \" cd .. \" and \"./preprocess.sh -s niid --sf 1.0 -k 0 -t sample \" to end the preprocessing for the full sized data set")
+            save_json(dir_path, 'data.json', users[:-1], num_samples[:-1], user_data)
+            save_json(dir_path, 'gan.json', users[-1], num_samples[-1], gan_data)
+            print("data.json ready with the adult.csv data distributed to {} workers and gan.json with the little subset of data that every worker will share".format(num_workers))
+            print("You can run \" cd .. \" and \"./preprocess.sh -s niid --sf 1.0 -k 0 -t sample \" to end the preprocessing for the full sized data set")
+        else:
+            users, num_samples, user_data = to_leaf_format_gan(df_adult, labels, num_workers)
+
+            gan_data = user_data[str(num_workers)]
+            del user_data[str(num_workers)]
+
+            save_json(dir_path, 'data.json', users[:-1], num_samples[:-1], user_data)
+            save_json(dir_path, 'gan.json', users[-1], num_samples[-1], gan_data)
+            print("data.json ready with the adult.csv data distributed to {} workers and gan.json with the little subset of data that every worker will share".format(num_workers))
+            print("You can run \" cd .. \" and \"./preprocess.sh -s niid --sf 1.0 -k 0 -t sample \" to end the preprocessing for the full sized data set")
     else:
-        if heterog:
+        if niid:
+            users, num_samples, user_data = to_leaf_format_100_0(df_adult, labels, num_workers)
+        elif heterog:
             users, num_samples, user_data = to_leaf_format_het(df_adult, labels, num_workers)
         else:
             users, num_samples, user_data = to_leaf_format(df_adult, labels, num_workers)
@@ -37,9 +57,7 @@ def main():
         save_json(dir_path, 'data.json', users, num_samples, user_data)
         print("data.json ready with the adult.csv data distributed to {} workers".format(num_workers))
         print("You can run \" cd .. \" and \"./preprocess.sh -s niid --sf 1.0 -k 0 -t sample \" to end the preprocessing for the full sized data set")
-    
 
-    
 
 def get_adult_clear(): #Load dataset 
     data_dir = os.path.join(parent_path, 'data', 'adult.csv')
@@ -122,11 +140,12 @@ def get_adult_clear(): #Load dataset
     # Make indexes coherent after NaNs removal
     df_clear.index = np.arange(np.array(df_clear.index).shape[0])
 
+    df_clear.to_csv("adult_preprocessed.csv", index_label= False) # Save adult preprocessing in a .csv in order to load it faster than preprocess the dataset every time
+
     labels = df_clear['income']
     df_clear = df_clear.drop("income", axis=1)
     
     print(df_clear.head())
-    df.clear.to_csv("adult_preprocessed.csv")
     return(df_clear,labels)
 
 def get_adult_clear_fast(): #Load dataset 
@@ -209,6 +228,30 @@ def get_indices_workers_het(df, num_workers): #Generate the samples indices for 
     indices_workers = [indices[make_indices[i]:make_indices[i+1]] for i in range(len(make_indices)-1)] #For each worker, we have a list of the samples he possesses
     return indices_workers
 
+def gan_indices(df,indices,size = 3):
+
+    '''Choose samples that will be in the little subset simulating the GAN dataset.
+    We take 'size' samples of each value of sensitive attributes in order to have diversity in the little subset of data. '''
+
+    gan_ind = []
+    cnt1, cnt2, cnt3, cnt4 = 0,0,0,0
+    i = 0
+    while len(gan_ind) < 4 * size:
+        if df['gender'].loc[indices[i]] == 0 and df['race'].loc[indices[i]] == 0 and cnt1 < size:
+            gan_ind.append(indices[i])
+            cnt1 += 1
+        elif df['gender'].loc[indices[i]] == 0 and df['race'].loc[indices[i]] == 1 and cnt2 < size:
+            gan_ind.append(indices[i])
+            cnt2 += 1
+        elif df['gender'].loc[indices[i]] == 1 and df['race'].loc[indices[i]] == 0 and cnt3 < size:
+            gan_ind.append(indices[i])
+            cnt3 += 1
+        elif df['gender'].loc[indices[i]] == 1 and df['race'].loc[indices[i]] == 1 and cnt4 < size:
+            gan_ind.append(indices[i])
+            cnt4 += 1
+        i+=1
+    return gan_ind
+
 def get_indices_workers_gan(df, num_workers):
     num_samples = len(df)
     mean1 = int(num_samples / (2*0.8*num_workers)) #80% of users will hold 50% of data
@@ -222,7 +265,7 @@ def get_indices_workers_gan(df, num_workers):
     delete_indices = []
     for i in range(len(gan_ind)):
         delete_indices.append(np.where(indices == gan_ind[i])[0][0])
-    indices = np.delete(indices, delete_indices) # Remove the little subset from the distributed data
+    indices = np.delete(indices, delete_indices) # Remove the little subset from the 'to be distributed' data
 
     data_remaining = num_samples - len(gan_ind) # Number of samples undistributed remaining in the dataset
     num_samples_workers =  [0]
@@ -252,25 +295,134 @@ def get_indices_workers_gan(df, num_workers):
 
     return indices_workers
 
-def gan_indices(df,indices,size = 3):
-    gan_ind = []
-    cnt1, cnt2, cnt3, cnt4 = 0,0,0,0
-    i = 0
-    while len(gan_ind) < 4 * size:
-        if df['gender'].loc[indices[i]] == 0 and df['race'].loc[indices[i]] == 0 and cnt1 < size:
-            gan_ind.append(indices[i])
-            cnt1 += 1
-        elif df['gender'].loc[indices[i]] == 0 and df['race'].loc[indices[i]] == 1 and cnt2 < size:
-            gan_ind.append(indices[i])
-            cnt2 += 1
-        elif df['gender'].loc[indices[i]] == 1 and df['race'].loc[indices[i]] == 0 and cnt3 < size:
-            gan_ind.append(indices[i])
-            cnt3 += 1
-        elif df['gender'].loc[indices[i]] == 1 and df['race'].loc[indices[i]] == 1 and cnt4 < size:
-            gan_ind.append(indices[i])
-            cnt4 += 1
-        i+=1
-    return gan_ind
+def get_indices_workers_100_0(df, num_workers): # N_samples race attribute ['0' : 6796, '1' : 41189]
+    n0, n1 = 6796, 41189
+    proportion_0 = n0 / (n0 + n1)
+    nb_user_0 = int(proportion_0 * num_workers)
+    nb_user_1 = num_workers - nb_user_0
+    
+    indices = np.array(df.index) # Indices of the samples
+    
+    samples0, samples1 = [], []
+
+    for i in indices: # Detect/split samples with sensitive attribute value "0" and "1"
+        if df['race'].loc[i] == 0: #TBD : sensitive attribute 
+            samples0.append(i)
+        else:
+            samples1.append(i)
+
+    mean0 = int(len(samples0) / nb_user_0) 
+    mean1 = int(len(samples1) / nb_user_1) 
+
+    np.random.shuffle(samples0)
+    np.random.shuffle(samples1)
+
+    data0_remaining = len(samples0) # Number of samples yet to be distributed to workers
+    data1_remaining = len(samples1)
+
+    num_samples_workers0, num_samples_workers1 =  [0], [0]
+    for i in range(nb_user_0-1): # We determine the number of samples for each of the worker that will hold samples with sensitive attribute value "0"
+        # We sample the number of samples for each of the worker except the last one that will have the remaining number of data
+        num_samples_i = np.random.poisson(mean0) # Sample from a poisson distribution
+        if data0_remaining - num_samples_i < 0:
+            num_samples_i = data0_remaining
+            num_samples_workers0.append(num_samples_i)
+            break
+        num_samples_workers0.append(num_samples_i) # Worker i will have num_samples_i samples in his local dataset
+        data0_remaining -= num_samples_i
+    if data0_remaining > 0: # If there are still data remaning then the last worker will have the remaining data otherwise we don't add a worker
+        num_samples_workers0.append(data0_remaining)
+
+    for i in range(nb_user_1-1): # And we determine the number of samples for each of the worker that will hold samples with sensitive attribute value "1"
+        num_samples_i = np.random.poisson(mean1)
+        if data1_remaining - num_samples_i < 0:
+            num_samples_i = data1_remaining
+            num_samples_workers1.append(num_samples_i)
+            break
+        num_samples_workers1.append(num_samples_i)
+        data1_remaining -= num_samples_i
+    if data1_remaining > 0:
+        num_samples_workers1.append(data1_remaining)
+
+    make_indices0 = np.cumsum(num_samples_workers0)
+    make_indices1 = np.cumsum(num_samples_workers1)
+    indices_workers0 = [samples0[make_indices0[i]:make_indices0[i+1]] for i in range(len(make_indices0)-1)] 
+    indices_workers1 = [samples1[make_indices1[i]:make_indices1[i+1]] for i in range(len(make_indices1)-1)]
+    #For each worker, we now have a list of the samples he possesses
+
+    indices_workers = indices_workers0 + indices_workers1 # Concatenate '0' and '1' workers' indices 
+    np.random.shuffle(indices_workers)
+
+    return indices_workers
+
+def get_indices_workers_gan_100_0(df, num_workers): # N_samples race attribute ['0' : 6796, '1' : 41189]
+    n0, n1 = 6796, 41189
+    proportion_0 = n0 / (n0 + n1)
+    nb_user_0 = int(proportion_0 * num_workers)
+    nb_user_1 = num_workers - nb_user_0
+    
+    indices = np.array(df.index) # Indices of the samples
+    
+    # Take a litte subset of data from the original dataset that will be shared by every workers (simulate data generated by a GAN)
+    gan_ind = gan_indices(df, indices)
+    delete_indices = []
+    for i in range(len(gan_ind)):
+        delete_indices.append(np.where(indices == gan_ind[i])[0][0])
+    indices = np.delete(indices, delete_indices) # Remove the little subset from the 'to be distributed' data
+
+    samples0, samples1 = [], []
+
+    for i in indices: # Detect/split samples with sensitive attribute value "0" and "1"
+        if df['race'].loc[i] == 0: #TBD : sensitive attribute 
+            samples0.append(i)
+        else:
+            samples1.append(i)
+
+    mean0 = int(len(samples0) / nb_user_0) 
+    mean1 = int(len(samples1) / nb_user_1) 
+
+    np.random.shuffle(samples0)
+    np.random.shuffle(samples1)
+
+    data0_remaining = len(samples0) # Number of samples yet to be distributed to workers
+    data1_remaining = len(samples1)
+
+    num_samples_workers0, num_samples_workers1 =  [0], [0]
+    for i in range(nb_user_0-1): # We determine the number of samples for each of the worker that will hold samples with sensitive attribute value "0"
+        # We sample the number of samples for each of the worker except the last one that will have the remaining number of data
+        num_samples_i = np.random.poisson(mean0) # Sample from a poisson distribution
+        if data0_remaining - num_samples_i < 0:
+            num_samples_i = data0_remaining
+            num_samples_workers0.append(num_samples_i)
+            break
+        num_samples_workers0.append(num_samples_i) # Worker i will have num_samples_i samples in his local dataset
+        data0_remaining -= num_samples_i
+    if data0_remaining > 0: # If there are still data remaning then the last worker will have the remaining data otherwise we don't add a worker
+        num_samples_workers0.append(data0_remaining)
+
+    for i in range(nb_user_1-1): # And we determine the number of samples for each of the worker that will hold samples with sensitive attribute value "1"
+        num_samples_i = np.random.poisson(mean1)
+        if data1_remaining - num_samples_i < 0:
+            num_samples_i = data1_remaining
+            num_samples_workers1.append(num_samples_i)
+            break
+        num_samples_workers1.append(num_samples_i)
+        data1_remaining -= num_samples_i
+    if data1_remaining > 0:
+        num_samples_workers1.append(data1_remaining)
+
+    make_indices0 = np.cumsum(num_samples_workers0)
+    make_indices1 = np.cumsum(num_samples_workers1)
+    indices_workers0 = [samples0[make_indices0[i]:make_indices0[i+1]] for i in range(len(make_indices0)-1)] 
+    indices_workers1 = [samples1[make_indices1[i]:make_indices1[i+1]] for i in range(len(make_indices1)-1)]
+    #For each worker, we now have a list of the samples he possesses
+
+    indices_workers = indices_workers0 + indices_workers1 # Concatenate '0' and '1' workers' indices 
+    np.random.shuffle(indices_workers)
+    # At the end of the workers' dataset we add a fictive worker that owns the little subset of data that everyone will share
+    indices_workers.append(gan_ind)
+    return indices_workers
+
 
 def to_leaf_format(df, labels, num_workers):
     users, num_samples, user_data = [], [], {}
@@ -306,6 +458,7 @@ def to_leaf_format_gan(df, labels, num_workers):
 
     for i, indices in enumerate(indices_workers):
         x, y = df.loc[indices].values.tolist(), labels[indices].tolist()
+        print(x)
         u_id = str(i)
 
         users.append(u_id)
@@ -314,6 +467,33 @@ def to_leaf_format_gan(df, labels, num_workers):
 
     return users, num_samples, user_data
 
+def to_leaf_format_100_0(df, labels, num_workers):
+    users, num_samples, user_data = [], [], {}
+    indices_workers = get_indices_workers_100_0(df,num_workers)
+
+    for i, indices in enumerate(indices_workers):
+        x, y = df.loc[indices].values.tolist(), labels[indices].tolist()
+        u_id = str(i)
+
+        users.append(u_id)
+        num_samples.append(len(y))
+        user_data[u_id] = {'x' : x, 'y' : y}
+
+    return users, num_samples, user_data
+    
+def to_leaf_format_gan_100_0(df, labels, num_workers):
+    users, num_samples, user_data = [], [], {}
+    indices_workers = get_indices_workers_gan_100_0(df,num_workers)
+
+    for i, indices in enumerate(indices_workers):
+        x, y = df.loc[indices].values.tolist(), labels[indices].tolist()
+        u_id = str(i)
+
+        users.append(u_id)
+        num_samples.append(len(y))
+        user_data[u_id] = {'x' : x, 'y' : y}
+
+    return users, num_samples, user_data
 
 def save_json(json_dir, json_name, users, num_samples, user_data):
 	if not os.path.exists(json_dir):
@@ -352,6 +532,12 @@ def parse_args():
 	parser.add_argument(
 		'-gan',
 		help='GAN setup (add a subset of data to all workers);',
+		type=bool,
+		default=False,
+		required=False)
+	parser.add_argument(
+		'-niid',
+		help='Non-IID 100-0 setup (add a subset of data to all workers);',
 		type=bool,
 		default=False,
 		required=False)

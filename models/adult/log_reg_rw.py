@@ -65,6 +65,7 @@ class ClientModel(Model):
 
         correct_pred = tf.equal(predictions, labels)
 
+        # This line is useful to prevent "NaN" or "inf" values
         DI = tf.cond(tf.equal(tf.math.divide_no_nan(term1,term2),tf.constant(0.0, dtype = tf.float64)), 
             true_fn = lambda : tf.constant(0.0, dtype = tf.float64), 
             false_fn = lambda : tf.math.divide_no_nan(term1,term2))
