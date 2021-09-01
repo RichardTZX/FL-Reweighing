@@ -10,7 +10,7 @@ from baseline_constants import ACCURACY_KEY
 
 from model import Model
 from fedprox import PerturbedGradientDescent
-from utils.model_utils import batch_data
+from utils.model_utils import batch_data_with_weights, get_sample_weights
 
 
 class ClientModel(Model):
@@ -19,15 +19,14 @@ class ClientModel(Model):
         self.num_classes = num_classes
         self.input_dim = input_dim
         self.cfg = cfg
-        self.lr = lr
 
         self.model_name = os.path.abspath(__file__)
-        
-        if self.cfg.sensitive_attribute == 'race':
-            self.sensitive_attribute = 0
-        else: #cfg.sensitive_attribute == 'gender'
-            self.sensitive_attribute = 1
 
+        if self.cfg.sensitive_attribute == 'race':
+            self.sensitive_attribute = 1
+        else: #cfg.sensitive_attribute == 'sex'
+            self.sensitive_attribute = 0
+        
         if cfg.fedprox:
             super(ClientModel, self).__init__(seed, lr, optimizer=PerturbedGradientDescent(lr, cfg.fedprox_mu))
         else:
@@ -36,22 +35,23 @@ class ClientModel(Model):
     def create_model(self):
         features = tf.placeholder(tf.float32, [None, self.input_dim])
         labels = tf.placeholder(tf.int64, [None])
+        self.sample_weights = tf.placeholder(tf.float32, [None])
 
-        privileged = 0 * features[:,0] + 1 #Privileged attributes is denoted by '1'
-        unprivileged = 0 * features[:,0]
+        logits = tf.layers.dense(features, self.num_classes, kernel_regularizer = 'l2', activation = tf.nn.sigmoid)
 
-        unpriv_samples = tf.equal(features[:,self.sensitive_attribute],unprivileged)
-        priv_samples = tf.equal(features[:,self.sensitive_attribute],privileged)
-
-        logits = tf.layers.dense(features[:,2:], self.num_classes, kernel_regularizer = 'l2', activation = tf.nn.sigmoid)
-
-        loss = tf.compat.v1.keras.losses.CategoricalCrossentropy(from_logits=True)(tf.one_hot(labels,2), logits)
+        loss = tf.compat.v1.keras.losses.CategoricalCrossentropy(from_logits=True)(tf.one_hot(labels,2), logits, sample_weight = self.sample_weights)
 
         train_op = self.optimizer.minimize(
             loss=loss,
             global_step=tf.train.get_global_step())
 
         predictions = tf.argmax(logits, axis=-1)
+
+        privileged = 0 * features[:,0] + 1 #Privileged attributes is denoted by '1'
+        unprivileged = 0 * features[:,0]
+
+        unpriv_samples = tf.equal(features[:,self.sensitive_attribute],unprivileged)
+        priv_samples = tf.equal(features[:,self.sensitive_attribute],privileged)
 
         unpriv_pred = predictions[unpriv_samples]
         temp = tf.count_nonzero(unpriv_pred * 0 + 1)
@@ -64,6 +64,7 @@ class ClientModel(Model):
 
         correct_pred = tf.equal(predictions, labels)
 
+        # This line is useful to prevent "NaN" or "inf" values
         DI = tf.cond(tf.equal(tf.math.divide_no_nan(term1,term2),tf.constant(0.0, dtype = tf.float64)), 
             true_fn = lambda : tf.constant(0.0, dtype = tf.float64), 
             false_fn = lambda : tf.math.divide_no_nan(term1,term2))
@@ -71,7 +72,6 @@ class ClientModel(Model):
         eval_metric_ops = [tf.count_nonzero(correct_pred),DI,
             [tf.count_nonzero(unpriv_pred), tf.count_nonzero(unpriv_pred * 0 + 1), tf.count_nonzero(priv_pred), tf.count_nonzero(priv_pred * 0 + 1)]]
         # The 4 elements table is useful to calculate the "global disparate impact" when local dataset are too small to calcule local DI and then take the mean of all the local DI.
-
         
         return features, labels, train_op, eval_metric_ops, tf.reduce_mean(loss)
 
@@ -94,11 +94,12 @@ class ClientModel(Model):
         loss = train_reslt['loss']
         logger.info('before: {}'.format(loss))
         '''
-        params_old= self.get_params() #transformer en model.get_weights ?
+        data_sample_weights = get_sample_weights(data, self.sensitive_attribute)
+        params_old= self.get_params()
         loss_old = self.test(data)['loss']
         
         for i in range(num_epochs):
-            self.run_epoch(data, batch_size)
+            self.run_epoch(data, data_sample_weights, batch_size)
 
         train_reslt = self.test(data)
         acc = train_reslt[ACCURACY_KEY]
@@ -119,9 +120,10 @@ class ClientModel(Model):
     def process_y(self, raw_y_batch):
         return np.array(raw_y_batch)
 
-    def run_epoch(self, data, batch_size):
 
-        for batched_x, batched_y in batch_data(data, batch_size, seed=self.seed):
+    def run_epoch(self, data, data_sample_weights, batch_size):
+        
+        for batched_x, batched_y, batch_weights in batch_data_with_weights(data, data_sample_weights, batch_size, seed=self.seed): 
 
             input_data = self.process_x(batched_x)
             target_data = self.process_y(batched_y)
@@ -134,7 +136,8 @@ class ClientModel(Model):
                     [self.train_op, self.eval_metric_ops, self.loss],
                     feed_dict={
                         self.features: input_data,
-                        self.labels: target_data})
+                        self.labels: target_data,
+                        self.sample_weights: batch_weights})
 
         acc = float(metrics[0]) / input_data.shape[0]
         return {'acc': acc, 'loss': loss, 'disparate impact': metrics[1], 'global_di': metrics[2]}
@@ -142,13 +145,15 @@ class ClientModel(Model):
     def test(self, data):
         x_vecs = self.process_x(data['x'])
         labels = self.process_y(data['y'])
+        data_sample_weights = get_sample_weights(data, self.sensitive_attribute)
 
         with self.graph.as_default():
             metrics, loss = self.sess.run(
                 [self.eval_metric_ops, self.loss],
                 feed_dict={
                     self.features: x_vecs, 
-                    self.labels: labels
+                    self.labels: labels,
+                    self.sample_weights: data_sample_weights
                 })
         acc = float(metrics[0]) / len(x_vecs)
         return {'accuracy': acc, 'loss': loss, 'disparate_impact': metrics[1], 'global_di': metrics[2]}

@@ -10,16 +10,16 @@ parent_path = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
 def main():
     args=parse_args()
     np.random.seed(args.seed)
-    print("Preprocessing adult.csv ...")
-    adult_preprocessed_dir = os.path.join(parent_path, 'data', 'adult_preprocessed.csv')
-    if os.path.exists(adult_preprocessed_dir):
-        print("Reading adult_preprocessed.csv ...")
-        df_adult = pd.read_csv(adult_preprocessed_dir)
-        labels = df_adult['income']
-        df_adult = df_adult.drop("income", axis=1)
-        print(df_adult.head())
+    print("Preprocessing COMPAS dataset ...")
+    compas_preprocessed_dir = os.path.join(parent_path, 'data', "compas_preprocessed.csv")
+    if os.path.exists(compas_preprocessed_dir):
+        print("Readind compas_preprocessed.csv ...")
+        df_compas = pd.read_csv(compas_preprocessed_dir)
+        labels = df_compas['class']
+        df_compas = df_compas.drop("class", axis=1)
+        print(df_compas.head())
     else:
-        df_adult, labels = get_adult_clear()
+        df_compas, labels = get_compas_clear()
     num_workers = args.num_workers
     heterog = args.heterog
     gan, niid, sensattr  = args.gan, args.niid, args.sens_attr
@@ -28,127 +28,180 @@ def main():
 
     if gan:
         if niid:
-            users, num_samples, user_data = to_leaf_format_gan_100_0(df_adult, labels, num_workers, sensattr)
+            users, num_samples, user_data = to_leaf_format_gan_100_0(df_compas, labels, num_workers, sensattr)
 
             gan_data = user_data[str(num_workers)]
             del user_data[str(num_workers)]
 
             save_json(dir_path, 'data.json', users[:-1], num_samples[:-1], user_data)
             save_json(dir_path, 'gan.json', users[-1], num_samples[-1], gan_data)
-            print("data.json ready with the adult.csv data distributed to {} workers and gan.json with the little subset of data that every worker will share".format(num_workers))
+            print("data.json ready with the compas-scores-two-years.csv data distributed to {} workers and gan.json with the little subset of data that every worker will share".format(num_workers))
             print("You can run \" cd .. \" and \"./preprocess.sh -s niid --sf 1.0 -k 0 -t sample\" to end the preprocessing for the full sized data set")
         else:
-            users, num_samples, user_data = to_leaf_format_gan(df_adult, labels, num_workers)
+            users, num_samples, user_data = to_leaf_format_gan(df_compas, labels, num_workers)
 
             gan_data = user_data[str(num_workers)]
             del user_data[str(num_workers)]
 
             save_json(dir_path, 'data.json', users[:-1], num_samples[:-1], user_data)
             save_json(dir_path, 'gan.json', users[-1], num_samples[-1], gan_data)
-            print("data.json ready with the adult.csv data distributed to {} workers and gan.json with the little subset of data that every worker will share".format(num_workers))
+            print("data.json ready with the compas-scores-two-years.csv data distributed to {} workers and gan.json with the little subset of data that every worker will share".format(num_workers))
             print("You can run \" cd .. \" and \"./preprocess.sh -s niid --sf 1.0 -k 0 -t sample\" to end the preprocessing for the full sized data set")
     else:
         if niid:
-            users, num_samples, user_data = to_leaf_format_100_0(df_adult, labels, num_workers, sensattr)
+            users, num_samples, user_data = to_leaf_format_100_0(df_compas, labels, num_workers, sensattr)
         elif heterog:
-            users, num_samples, user_data = to_leaf_format_het(df_adult, labels, num_workers)
+            users, num_samples, user_data = to_leaf_format_het(df_compas, labels, num_workers)
         else:
-            users, num_samples, user_data = to_leaf_format(df_adult, labels, num_workers)
-            print('Standard distribution among the workers.')
+            users, num_samples, user_data = to_leaf_format(df_compas, labels, num_workers)
 
         save_json(dir_path, 'data.json', users, num_samples, user_data)
-        print("data.json ready with the adult.csv data distributed to {} workers".format(num_workers))
+        print("data.json ready with the compas-scores-two-years.csv data distributed to {} workers".format(num_workers))
         print("You can run \" cd .. \" and \"./preprocess.sh -s niid --sf 1.0 -k 0 -t sample\" to end the preprocessing for the full sized data set")
 
 
-def get_adult_clear(): #Load dataset 
-    data_dir = os.path.join(parent_path, 'data', 'adult.csv')
+def get_compas_clear(): #Load dataset / Preprocessing from IBM github 
+    data_dir = os.path.join(parent_path, 'data', 'compas-scores-two-years.csv')
 
-    # ADULT PREPROCESSING DESCRIBED IN 
+    # COMPAS PREPROCESSING DESCRIBED IN 
     # Abey et al. - Mitigating Bias in Federated Learning
 
-    df = pd.read_csv(data_dir, usecols = ['age','educational-num','race','gender','income'])
-    df['income'] = df['income'].replace('<=50K', 0).replace('>50K', 1)
-    df['gender'] = df['gender'].replace("Male",1).replace("Female",0)
+    df = pd.read_csv(data_dir)
+    df['class'] = df['two_year_recid']
+    df = df.drop('two_year_recid', axis=1)
     
-    # RACE to [|0,1|] 
-    # 1 : White 
-    # 2 : Amer-Indian-Eskimo,Asian-Pac-Islander,Black,Other
+    # map 'sex' feature values based on sensitive attribute privileged/unprivileged groups
+    df['sex'] = df['sex'].map({'Female': 1, 'Male': 0})
+    df['days_b_screening_arrest'] = df['days_b_screening_arrest'].astype(float)
 
-    df_race = pd.get_dummies(df['race'])
-    df_clear = pd.concat((df_race, df), axis=1)
-    df_clear = df_clear.drop(["race","Amer-Indian-Eskimo","Asian-Pac-Islander","Black","Other"], axis=1)
-    df_clear = df_clear.rename(columns={"White" : "race"})
+    ix = df['days_b_screening_arrest'] <= 30
+    ix = (df['days_b_screening_arrest'] >= -30) & ix
+    ix = (df['is_recid'] != -1) & ix
+    ix = (df['c_charge_degree'] != "O") & ix
+    ix = (df['score_text'] != 'N/A') & ix
+    df = df.loc[ix, :]
+    df['length_of_stay'] = (pd.to_datetime(df['c_jail_out']) -
+                                            pd.to_datetime(df['c_jail_in'])).apply(
+                                            lambda x: x.days)
 
-    # AGE to 7 features in a one hot encoded way
+    # filter out columns unused in training, and reorder columns
+    df = df.loc[~df['race'].isin(
+        ['Native American', 'Hispanic', 'Asian', 'Other']), :]
+    df = df[['sex', 'race', 'age_cat', 'c_charge_degree',
+                                            'score_text', 'priors_count', 'is_recid',
+                                            'length_of_stay', 'class']]
+    df['priors_count'] = df['priors_count'].astype(int)
 
-    df_clear['age'] = df_clear['age'].astype(int)
-    df_clear['educational-num'] = df_clear['educational-num'].astype(int)
+    # Quantize priors count between 0, 1-3, and >3
+    def quantizePrior(x):
+        col = []
+        for i in x:
+            if i <= 0:
+                col.append('0')
+            elif 1 <= i <= 3:
+                col.append('1 to 3')
+            else:
+                col.append('More than 3')
+        return col
 
-    for i in range(8):
-            if i != 0:
-                df_clear['age' + str(i)] = 0
+    # Quantize length of stay
+    def quantizeLOS(x):
+        col = []
+        for i in x:
+            if i <= 7:
+                col.append('<week')
+            elif 8 <= i <= 93:
+                col.append('<3months')
+            else:
+                col.append('>3 months')
+        return col
 
-    for index, row in df_clear.iterrows():
-        if row['age'] < 20:
-            df_clear.loc[index, 'age1'] = 1
-        elif ((row['age'] < 30) & (row['age'] >= 20)):
-            df_clear.loc[index, 'age2'] = 1
-        elif ((row['age'] < 40) & (row['age'] >= 30)):
-            df_clear.loc[index, 'age3'] = 1
-        elif ((row['age'] < 50) & (row['age'] >= 40)):
-            df_clear.loc[index, 'age4'] = 1
-        elif ((row['age'] < 60) & (row['age'] >= 50)):
-            df_clear.loc[index, 'age5'] = 1
-        elif ((row['age'] < 70) & (row['age'] >= 60)):
-            df_clear.loc[index, 'age6'] = 1
-        elif row['age'] >= 70:
-            df_clear.loc[index, 'age7'] = 1
+    # Quantize length of stay
+    def adjustAge(x):
+        col = []
+        for i in x:
+            if i == '25 - 45':
+                col.append('25 to 45')
+            else:
+                col.append(i)
+        return col
 
-    df_clear['ed6less'] = 0
-    for i in range(13):
-        if i >= 6:
-            df_clear['ed' + str(i)] = 0
-    df_clear['ed12more'] = 0
+    # Quantize score_text to MediumHigh
+    def quantizeScore(x):
+        col = []
+        for i in x:
+            if (i == 'High') | (i == 'Medium'):
+                col.append('MediumHigh')
+            else:
+                col.append(i)
+        return col
 
-    for index, row in df_clear.iterrows():
-        if row['educational-num'] < 6:
-            df_clear.loc[index, 'ed6less'] = 1
-        elif row['educational-num'] == 6:
-            df_clear.loc[index, 'ed6'] = 1
-        elif row['educational-num'] == 7:
-            df_clear.loc[index, 'ed7'] = 1
-        elif row['educational-num'] == 8:
-            df_clear.loc[index, 'ed8'] = 1
-        elif row['educational-num'] == 9:
-            df_clear.loc[index, 'ed9'] = 1
-        elif row['educational-num'] == 10:
-            df_clear.loc[index, 'ed10'] = 1
-        elif row['educational-num'] == 11:
-            df_clear.loc[index, 'ed11'] = 1
-        elif row['educational-num'] == 12:
-            df_clear.loc[index, 'ed12'] = 1
-        elif row['educational-num'] > 12:
-            df_clear.loc[index, 'ed12more'] = 1
+    # Map race to 0/1 based on unprivileged/privileged groups
+    def group_race(x):
+        col = []
+        for i in x:
+            if i == "Caucasian":
+                col.append(1)
+            else:
+                col.append(0)
+        return col
 
-    df_clear.drop(['age', 'educational-num'], axis=1, inplace=True)
+    def flipclass(x):
+        col = []
+        for i in x:
+            if i == 1:
+                col.append(0)
+            if i == 0:
+                col.append(1)
+        return col
 
-    # Remove NaNs
-    object_col = df_clear.select_dtypes(include=object).columns.tolist()
-    for col in object_col: #Remove NaNs from Adult dataset
-        df_clear.loc[df_clear[col] == '?', col] = np.nan
-    df_clear = df_clear.dropna(axis=0, how = 'any')
+    df['priors_count'] = quantizePrior(df['priors_count'])
+    df['length_of_stay'] = quantizeLOS(df['length_of_stay'])
+    df['score_text'] = quantizeScore(df['score_text'])
+    df['age_cat'] = adjustAge(df['age_cat'])
+    df['race'] = group_race(df['race'])
+    df['class'] = flipclass(df['class'])
 
-    # Make indexes coherent after NaNs removal
-    df_clear.index = np.arange(np.array(df_clear.index).shape[0])
+    new_cols = ['age_cat = 25 to 45', 'age_cat = Greater than 45', 'age_cat = Less than 25', 'priors_count = 0',
+                'priors_count = 1 to 3', 'priors_count = More than 3', 'c_charge_degree = F', 'c_charge_degree = M']
 
-    df_clear.to_csv("adult_preprocessed.csv", index_label= False) # Save adult preprocessing in a .csv in order to load it faster than preprocess the dataset every time
+    for i in new_cols:
+        df[i] = 0
 
-    labels = df_clear['income']
-    df_clear = df_clear.drop("income", axis=1)
+    for index, row in df.iterrows():
+        if row['age_cat'] == '25 to 45':
+            df.loc[index, 'age_cat = 25 to 45'] = 1
+        elif row['age_cat'] == 'More than 45':
+            df.loc[index, 'age_cat = Greater than 45'] = 1
+        elif row['age_cat'] == 'Less than 45':
+            df.loc[index, 'age_cat = Less than 25'] = 1
+
+    for index, row in df.iterrows():
+        if row['priors_count'] == '0':
+            df.loc[index, 'priors_count = 0'] = 1
+        elif row['priors_count'] == '1 to 3':
+            df.loc[index, 'priors_count = 1 to 3'] = 1
+        elif row['priors_count'] == 'More than 3':
+            df.loc[index, 'priors_count = More than 3'] = 1
+
+    for index, row in df.iterrows():
+        if row['c_charge_degree'] == "F":
+            df.loc[index, 'c_charge_degree = F'] = 1
+        elif row['c_charge_degree'] == "M":
+            df.loc[index, 'c_charge_degree = M'] = 1
+
+    df = df.drop(
+        ['age_cat', 'priors_count', 'c_charge_degree', 'is_recid', 'score_text', 'length_of_stay'], axis=1)
+
+    label = df['class']
+    df.drop(['class'], axis=1, inplace=True)
+    df['class'] = label
+
+
+    df.to_csv("compas_preprocessed.csv", index_label= False) # Save compas preprocessing in a .csv in order to load it faster than preprocess the dataset every time
     
-    print(df_clear.head())
-    return(df_clear,labels)
+    print(df.head())
+    return(df,label)
 
 def get_indices_workers(df, num_workers): #Generate the samples indices for each worker
     mean = int(len(df) / num_workers)
@@ -198,16 +251,16 @@ def gan_indices(df,indices,size = 2):
     cnt1, cnt2, cnt3, cnt4 = 0,0,0,0
     i = 0
     while len(gan_ind) < 4 * size:
-        if df['gender'].loc[indices[i]] == 0 and df['race'].loc[indices[i]] == 0 and cnt1 < size:
+        if df['sex'].loc[indices[i]] == 0 and df['race'].loc[indices[i]] == 0 and cnt1 < size:
             gan_ind.append(indices[i])
             cnt1 += 1
-        elif df['gender'].loc[indices[i]] == 0 and df['race'].loc[indices[i]] == 1 and cnt2 < size:
+        elif df['sex'].loc[indices[i]] == 0 and df['race'].loc[indices[i]] == 1 and cnt2 < size:
             gan_ind.append(indices[i])
             cnt2 += 1
-        elif df['gender'].loc[indices[i]] == 1 and df['race'].loc[indices[i]] == 0 and cnt3 < size:
+        elif df['sex'].loc[indices[i]] == 1 and df['race'].loc[indices[i]] == 0 and cnt3 < size:
             gan_ind.append(indices[i])
             cnt3 += 1
-        elif df['gender'].loc[indices[i]] == 1 and df['race'].loc[indices[i]] == 1 and cnt4 < size:
+        elif df['sex'].loc[indices[i]] == 1 and df['race'].loc[indices[i]] == 1 and cnt4 < size:
             gan_ind.append(indices[i])
             cnt4 += 1
         i+=1
@@ -439,7 +492,7 @@ def to_leaf_format_gan(df, labels, num_workers):
 
 def to_leaf_format_100_0(df, labels, num_workers, sensattr = "race"):
     users, num_samples, user_data = [], [], {}
-    indices_workers = get_indices_workers_100_0(df,num_workers,sensattr)
+    indices_workers = get_indices_workers_100_0(df,num_workers, sensattr)
 
     for i, indices in enumerate(indices_workers):
         x, y = df.loc[indices].values.tolist(), labels[indices].tolist()
@@ -513,10 +566,10 @@ def parse_args():
 		required=False)
 	parser.add_argument(
 		'-sens-attr',
-		help='The sensitive attribute to be considered in the dataset (race or gender);',
+		help='The sensitive attribute to be considered in the dataset (race or sex);',
 		type=str,
 		default=None,
-        choices = ['race', 'gender'],
+        choices = ['race', 'sex'],
 		required=False)
         
 

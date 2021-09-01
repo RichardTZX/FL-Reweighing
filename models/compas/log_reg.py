@@ -24,9 +24,9 @@ class ClientModel(Model):
         self.model_name = os.path.abspath(__file__)
         
         if self.cfg.sensitive_attribute == 'race':
-            self.sensitive_attribute = 0
-        else: #cfg.sensitive_attribute == 'gender'
             self.sensitive_attribute = 1
+        else: #cfg.sensitive_attribute == 'sex'
+            self.sensitive_attribute = 0
 
         if cfg.fedprox:
             super(ClientModel, self).__init__(seed, lr, optimizer=PerturbedGradientDescent(lr, cfg.fedprox_mu))
@@ -43,7 +43,7 @@ class ClientModel(Model):
         unpriv_samples = tf.equal(features[:,self.sensitive_attribute],unprivileged)
         priv_samples = tf.equal(features[:,self.sensitive_attribute],privileged)
 
-        logits = tf.layers.dense(features[:,2:], self.num_classes, kernel_regularizer = 'l2', activation = tf.nn.sigmoid)
+        logits = tf.layers.dense(features, self.num_classes, kernel_regularizer = 'l2')
 
         loss = tf.compat.v1.keras.losses.CategoricalCrossentropy(from_logits=True)(tf.one_hot(labels,2), logits)
 

@@ -11,7 +11,7 @@
 - In order to run these reference implementations, the ```-t sample``` tag must have been used when running the ```./preprocess.sh``` script for the respective dataset
 - The total number of clients simulated equals the total number of users in the respective dataset's training data
 - If you don't use a config file, ```main.py``` supports these additional tags:
-    - ```--model```: name of model; options are listed the respective dataset folder, for example ```cnn``` for femnist; defaults to first model in the respective dataset folder
+    - ```--model```: name of model; options are listed the respective dataset folder, for example ```log_reg_rw``` (logistic regression with the local reweighing) or ```log_reg``` for adult; defaults to first model in the respective dataset folder
     - ```--num_rounds```: number of rounds to simulate
     - ```--eval_every```: evaluate every ___ rounds
     - ```--clients_per_round```: number of clients trained per round

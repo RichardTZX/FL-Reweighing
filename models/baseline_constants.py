@@ -63,7 +63,8 @@ MODEL_PARAMS = {
     'celeba.cnn': (0.1, 2), # lr, num_classes
     'adult.log_reg_rw': (0.003, 2, 18), #lr, num_classes, input_dim
     'adult.log_reg': (0.003, 2, 18), #lr, num_classes, input_dim
-    'adult.log_reg_ditest': (0.003, 2, 18), #lr, num_classes, input_dim
+    'compas.log_reg': (0.003, 2, 10), #lr, num_classes, input_dim
+    'compas.log_reg_rw': (0.003, 2, 10), #lr, num_classes, input_dim
     'synthetic.log_reg': (0.0003, 5, 60), # lr, num_classes, input_dim
     'reddit.stacked_lstm': (0.0003, 10, 256, 2), # lr, seq_len, num_hidden, num_layers
     'reddit.topk_stacked_lstm': (0.0003, 10, 256, 2), # lr, seq_len, num_hidden, num_layers

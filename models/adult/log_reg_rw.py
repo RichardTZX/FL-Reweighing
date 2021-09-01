@@ -10,7 +10,7 @@ from baseline_constants import ACCURACY_KEY
 
 from model import Model
 from fedprox import PerturbedGradientDescent
-from utils.model_utils import batch_data, batch_data_with_weights, batch_data_binary_oversampling, batch_data_binary_oversampling_with_weights, get_sample_weights
+from utils.model_utils import batch_data_with_weights, get_sample_weights
 
 
 class ClientModel(Model):
@@ -19,7 +19,6 @@ class ClientModel(Model):
         self.num_classes = num_classes
         self.input_dim = input_dim
         self.cfg = cfg
-        self.oversample = False
 
         self.model_name = os.path.abspath(__file__)
 
@@ -38,7 +37,7 @@ class ClientModel(Model):
         labels = tf.placeholder(tf.int64, [None])
         self.sample_weights = tf.placeholder(tf.float32, [None])
 
-        logits = tf.layers.dense(features, self.num_classes, kernel_regularizer = 'l2')
+        logits = tf.layers.dense(features[:,2:], self.num_classes, kernel_regularizer = 'l2', activation = tf.nn.sigmoid)
 
         loss = tf.compat.v1.keras.losses.CategoricalCrossentropy(from_logits=True)(tf.one_hot(labels,2), logits, sample_weight = self.sample_weights)
 
@@ -72,6 +71,7 @@ class ClientModel(Model):
 
         eval_metric_ops = [tf.count_nonzero(correct_pred),DI,
             [tf.count_nonzero(unpriv_pred), tf.count_nonzero(unpriv_pred * 0 + 1), tf.count_nonzero(priv_pred), tf.count_nonzero(priv_pred * 0 + 1)]]
+        # The 4 elements table is useful to calculate the "global disparate impact" when local dataset are too small to calcule local DI and then take the mean of all the local DI.
         
         return features, labels, train_op, eval_metric_ops, tf.reduce_mean(loss)
 
@@ -122,14 +122,8 @@ class ClientModel(Model):
 
 
     def run_epoch(self, data, data_sample_weights, batch_size):
-        # We use oversampling in order to not have a single label predicted
-        # Label '1' is the minority label in the adult dataset.
-        if self.oversample:
-            batches = batch_data_binary_oversampling_with_weights(data, data_sample_weights, batch_size, seed=self.seed, label_to_oversample = 1)
-        else:
-            batches = batch_data_with_weights(data, data_sample_weights, batch_size, seed=self.seed)
 
-        for batched_x, batched_y, batch_weights in batches: 
+        for batched_x, batched_y, batch_weights in batch_data_with_weights(data, data_sample_weights, batch_size, seed=self.seed):
 
             input_data = self.process_x(batched_x)
             target_data = self.process_y(batched_y)
