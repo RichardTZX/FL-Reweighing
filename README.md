@@ -2,7 +2,7 @@
 
 The idea behind this repository is to combine the bias mitigation method from IBM made for cross-silo FL setup and the heterogeneity aware platform FLASH that can be used to simulate a cross-device FL setup which is more complex and more heterogeneous than the cross-silo setup.
 
-![test][images/test.png]
+![test][https://raw.github.com/RichardTZX/FL-Reweighing/main/images/test.png]
  
  # FLASH
 This repository is based on the [FLASH](https://github.com/PKU-Chengxu/FLASH)  : An Open Source *Heterogeneity-Aware* Federated Learning Platform. More details on what is FLASH in the link to the github repository below.
