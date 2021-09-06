@@ -28,13 +28,13 @@ The aim of this dataset is to use census data (individual’s education level, a
     - ```--spltseed``` :=  seed to be used before random split of data
 
 i.e.
-- ```./preprocess.sh -s niid --sf 1.0 -k 0 -t sample``` (full-sized dataset)<br/>
+- ```./preprocess.sh --sf 1.0 -k 0 -t sample``` (full-sized dataset)<br/>
 
 Make sure to delete the rem_user_data, sampled_data, test, and train subfolders in the data directory before re-running preprocess.sh
 
 ## Notes
-- More details on i.i.d. versus non-i.i.d.:
-  - TBD
+- More details on non-i.i.d. setup:
+  - - **Non-IID setup 100/0** : In the cross-device Federated Learning we will suppose that each device (a smartphone) is used by a single individual. Hence the local data of each device has the same value for sensitive attributes (a single race/gender) of every samples. The "non-IID setup **100/0**" refers to the setup in which every worker posseses samples with only one value of sensitive attributes (*if the sensitive attribute is binary* **100% samples** from one value and **0% samples** from the other value) 
 - Each .json file is an object with 3 keys:
   1. 'users', a list of users
   2. 'num_samples', a list of the number of samples for each user, and 

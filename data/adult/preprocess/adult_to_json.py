@@ -36,7 +36,7 @@ def main():
             save_json(dir_path, 'data.json', users[:-1], num_samples[:-1], user_data)
             save_json(dir_path, 'gan.json', users[-1], num_samples[-1], gan_data)
             print("data.json ready with the adult.csv data distributed to {} workers and gan.json with the little subset of data that every worker will share".format(num_workers))
-            print("You can run \" cd .. \" and \"./preprocess.sh -s niid --sf 1.0 -k 0 -t sample\" to end the preprocessing for the full sized data set")
+            print("You can run \" cd .. \" and \"./preprocess.sh --sf 1.0 -k 0 -t sample\" to end the preprocessing for the full sized data set")
         else:
             users, num_samples, user_data = to_leaf_format_gan(df_adult, labels, num_workers)
 
@@ -46,7 +46,7 @@ def main():
             save_json(dir_path, 'data.json', users[:-1], num_samples[:-1], user_data)
             save_json(dir_path, 'gan.json', users[-1], num_samples[-1], gan_data)
             print("data.json ready with the adult.csv data distributed to {} workers and gan.json with the little subset of data that every worker will share".format(num_workers))
-            print("You can run \" cd .. \" and \"./preprocess.sh -s niid --sf 1.0 -k 0 -t sample\" to end the preprocessing for the full sized data set")
+            print("You can run \" cd .. \" and \"./preprocess.sh --sf 1.0 -k 0 -t sample\" to end the preprocessing for the full sized data set")
     else:
         if niid:
             users, num_samples, user_data = to_leaf_format_100_0(df_adult, labels, num_workers, sensattr)
@@ -58,7 +58,7 @@ def main():
 
         save_json(dir_path, 'data.json', users, num_samples, user_data)
         print("data.json ready with the adult.csv data distributed to {} workers".format(num_workers))
-        print("You can run \" cd .. \" and \"./preprocess.sh -s niid --sf 1.0 -k 0 -t sample\" to end the preprocessing for the full sized data set")
+        print("You can run \" cd .. \" and \"./preprocess.sh --sf 1.0 -k 0 -t sample\" to end the preprocessing for the full sized data set")
 
 
 def get_adult_clear(): #Load dataset 
