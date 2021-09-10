@@ -7,6 +7,13 @@
 - Run ```python main.py --config adult_default.cfg```
 - For more simulation options and details, see 'Additional Notes' section
 
+## COMPAS Classifier Instructions
+- Ensure that the ```data/compas/data/train``` and ```data/compas/data/test``` directories contain data
+- If you use the 'Simulated GAN' setup make sure to delete ```data_niid_*.json``` in ```data/compas/data/train```. You should only have ```gan_data_*.json``` in this directory.
+- Write a config file following the example of ```compas_default.cfg```. You should change the number of clients selected at each round, the learning rate, heterogeneities,...
+- Run ```python main.py --config compas_default.cfg```
+- For more simulation options and details, see 'Additional Notes' section
+
 ## Additional Notes
 - In order to run these reference implementations, the ```-t sample``` tag must have been used when running the ```./preprocess.sh``` script for the respective dataset
 - The total number of clients simulated equals the total number of users in the respective dataset's training data

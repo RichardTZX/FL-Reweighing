@@ -8,9 +8,8 @@ We propose in this repository to do experiments around cross-device Federated Le
 - Two fairness aspects : 
     - **Sensitive attribute fairness** : Sensitive attributes are attributes that are considered should not be used for a task e.g. race/gender. This type of fairness tackles the biases that can occur in the decisions made by an algorithm.
     - **Fair contribution** : In the cross-device setup, hardware and state heterogeneity (described in [FLASH](https://github.com/PKU-Chengxu/FLASH)) can induce an over-representation of some workers that are always available for the training task and an under-representaton of other workers that cannot participate in the training of the model. With non-IID data over the workers this can cause that some workers receive a model with poor or biased performance on its local data. Fair contribution tackles those issues (see the figure below from [Li et al., 2019](https://arxiv.org/abs/1905.10497))
-    <center>
-     <img src="/images/fair-resource-allocation.png" alt="cross-device-and-cross-silo-comparison" width="350"/>
-    </center>
+    
+     <img src="/images/fair-resource-allocation.png" alt="cross-device-and-cross-silo-comparison" width="350" class ="center">
 
 - IBM **Local reweighing** published in [Mitigating Bias in Federated Learning, Abay et al.](https://arxiv.org/abs/2012.02447) in which they study the impact of bias mitigation methods in a cross-silo Federated Learning setup. Among these methods, the local reweighing (which consists in **reweighing samples** with regard to the sensitive attribute value) seems very promising for improving fairness of models through the improvement of fairness metrics like *statistical parity difference (SPD), equal opportunity odds (EOD), average odds difference (AOD) and disparate impact (DI)* while preserving users privacy.   
 
