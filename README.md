@@ -8,9 +8,9 @@ We propose in this repository to do experiments around cross-device Federated Le
 - Two fairness aspects : 
     - **Sensitive attribute fairness** : Sensitive attributes are attributes that are considered should not be used for a task e.g. race/gender. This type of fairness tackles the biases that can occur in the decisions made by an algorithm.
     - **Fair contribution** : In the cross-device setup, hardware and state heterogeneity (described in [FLASH](https://github.com/PKU-Chengxu/FLASH)) can induce an over-representation of some workers that are always available for the training task and an under-representaton of other workers that cannot participate in the training of the model. With non-IID data over the workers this can cause that some workers receive a model with poor or biased performance on its local data. Fair contribution tackles those issues (see the figure below from [Li et al., 2019](https://arxiv.org/abs/1905.10497))
-    
+    <p align="center">
      <img src="/images/fair-resource-allocation.png" alt="cross-device-and-cross-silo-comparison" width="350" class ="center">
-
+    </p>
 - IBM **Local reweighing** published in [Mitigating Bias in Federated Learning, Abay et al.](https://arxiv.org/abs/2012.02447) in which they study the impact of bias mitigation methods in a cross-silo Federated Learning setup. Among these methods, the local reweighing (which consists in **reweighing samples** with regard to the sensitive attribute value) seems very promising for improving fairness of models through the improvement of fairness metrics like *statistical parity difference (SPD), equal opportunity odds (EOD), average odds difference (AOD) and disparate impact (DI)* while preserving users privacy.   
 
 - **Non-IID setup 100/0** : In the cross-device Federated Learning we will suppose that each device (a smartphone) is used by a single individual. Hence the local data of each device has the same value for sensitive attributes (a single race/gender) of every samples. The "non-IID setup **100/0**" refers to the setup in which every worker posseses samples with only one value of sensitive attributes (*if the sensitive attribute is binary* **100% samples** from one value and **0% samples** from the other value) 
@@ -67,3 +67,35 @@ The datasets used in this repository are not Federated Learning specific. This m
 - **Task:** Classification 
 
 ## Results
+
+The approach followed for the experiments is the one described below :
+- Check that implemented Local Reweighing can reproduce the IBM Local Reweighing results in the cross-silo setup on Adult and COMPAS datasets.
+- Observe the influence of Local Reweighing coupled to a GAN and the influence of heterogeneities on the accuracy/disparate impact trade-off in the cross-device setup
+
+First, the experiments made by IBM in the cross-silo setup with IID data have been reproduced in order to ensure that the model that we implemented works on the Adult and Compas dataset.
+
+We compare results for accuracy and Disparate Impact metric (which is a group fairness metric) :
+
+$DI = \frac{P(\hat{y} = 1 | z = 0)}{P( \hat{y} = 1 | z = 1)}$
+
+For the Adult dataset :
+<p align="center">
+<img src="/images/CrossSiloIBMAdult.png" alt="cross-silo-adult" width="350" class ="center">
+</p>
+For the Compas dataset :
+<p align="center">
+<img src="/images/CrossSiloIBMCompasSex.png" alt="cross-silo-compas" width="350" class ="center">
+</p>
+We see that local reweighing is effective in its bias mitigation task.
+
+Then we examine a cross-device FL setup likely to happen in the real world. Thousands of workers have been considered for these experiments with the 100-0 setup that we described above. Experiments are made under both heterogeneous and non-heterogeneous environments. We report some of the results in the next figures.
+
+For the Adult dataset :
+<p align="center">
+<img src="/images/CrossDeviceAdultNONIID.png" alt="cross-device-adult" width="350" class ="center">
+</p>
+For the Compas dataset :
+<p align="center">
+<img src="/images/CrossDeviceCOMPASSex.png" alt="cross-device-adult" width="350" class ="center">
+</p>
+We observe an improvement in terms of Disparate Impact (DI) as in our experiments the GAN + Local Reweighing setup make the DI in the acceptable margin [0.8,1.25] for both heterogeneous and non-heterogeneous environments.
