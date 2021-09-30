@@ -96,6 +96,6 @@ For the Adult dataset :
 </p>
 For the Compas dataset :
 <p align="center">
-<img src="/images/CrossDeviceCOMPASSex.png" alt="cross-device-adult" width="350" class ="center">
+<img src="/images/CrossDeviceCOMPASSex.png" alt="cross-device-compas" width="350" class ="center">
 </p>
 We observe an improvement in terms of Disparate Impact (DI) as in our experiments the GAN + Local Reweighing setup make the DI in the acceptable margin [0.8,1.25] for both heterogeneous and non-heterogeneous environments.
